@@ -9,5 +9,6 @@ spring:
 
 logging:
   level:
-    org.springframework.web: INFO
+    com.netflix: WARN
+    org.springframework.web: WARN
     com.onlinelibrary: DEBUG
