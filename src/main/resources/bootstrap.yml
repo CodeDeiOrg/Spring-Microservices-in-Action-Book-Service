@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: book-service
+  profiles:
+    active: dev
+  cloud:
+    config:
+      uri: http://configserver:8071
+
+logging:
+  level:
+    org.springframework.web: INFO
+    com.onlinelibrary: DEBUG
