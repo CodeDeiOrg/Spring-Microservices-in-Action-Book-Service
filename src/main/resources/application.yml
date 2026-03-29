@@ -3,9 +3,8 @@ spring:
     name: book-service
   profiles:
     active: dev
-  cloud:
-    config:
-      uri: http://configserver:8071
+  config:
+    import: "configserver:http://configserver:8071"
 
 logging:
   level:

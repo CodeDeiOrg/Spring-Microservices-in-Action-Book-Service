@@ -4,14 +4,16 @@ import com.onlinelibrary.book.entity.Message;
 import com.onlinelibrary.book.exception.AdminControlException;
 import com.onlinelibrary.book.requestmodels.AdminQuestionRequest;
 import com.onlinelibrary.book.service.MessagesService;
-import com.onlinelibrary.book.utils.ExtractJWT;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import static com.onlinelibrary.book.utils.Constants.USER_TYPE;
+import java.util.List;
+
+import static com.onlinelibrary.book.utils.Constants.ROLES_CLAIM;
 import static com.onlinelibrary.book.utils.Constants.ADMIN;
 import static com.onlinelibrary.book.utils.Constants.ADMINISTRATION_PAGE_ONLY;
-import static com.onlinelibrary.book.utils.Constants.SUB;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -24,22 +26,21 @@ public class MessagesController {
     }
 
     @PostMapping("/secure/add/message")
-    public void postMessage(@RequestHeader(value = "Authorization") String token,
+    public void postMessage(@AuthenticationPrincipal Jwt jwt,
                             @RequestBody Message messageRequest) {
-        String userEmail = ExtractJWT.payloadJWTExtraction(token, SUB);
+        String userEmail = jwt.getClaim("email");
         messagesService.postMessage(messageRequest, userEmail);
     }
 
     @PutMapping("/secure/admin/message")
-    public void putMessage(@RequestHeader(value = "Authorization") String token,
+    public void putMessage(@AuthenticationPrincipal Jwt jwt,
                            @RequestBody AdminQuestionRequest adminQuestionRequest) {
-        String userEmail = ExtractJWT.payloadJWTExtraction(token, SUB);
-        String admin = ExtractJWT.payloadJWTExtraction(token, USER_TYPE);
-        if (admin == null || !admin.equals(ADMIN)) {
+        List<String> roles = jwt.getClaim(ROLES_CLAIM);
+        if (roles == null || !roles.contains(ADMIN)) {
             throw new AdminControlException(ADMINISTRATION_PAGE_ONLY);
         }
+        String userEmail = jwt.getClaim("email");
         messagesService.putMessage(adminQuestionRequest, userEmail);
     }
 
 }
-

@@ -1,28 +1,18 @@
-#stage 1
-#Start with a base image containing Java runtime
-FROM openjdk:17-slim AS build
+# stage 1 — extract layers
+FROM eclipse-temurin:25-jdk AS build
 
-# The application's jar file
 ARG JAR_FILE
-
-# Add the application's jar to the container
 COPY ${JAR_FILE} app.jar
+RUN java -Djarmode=layertools -jar app.jar extract --destination extracted
 
-#unpackage jar file
-RUN mkdir -p target/dependency && (cd target/dependency; jar -xf /app.jar)
+# stage 2 — runtime
+FROM eclipse-temurin:25-jre
 
-#stage 2
-#Same Java runtime
-FROM openjdk:17-slim
-
-#Add volume pointing to /tmp
 VOLUME /tmp
 
-#Copy unpackaged application to new container
-ARG DEPENDENCY=/target/dependency
-COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib
-COPY --from=build ${DEPENDENCY}/META-INF /app/META-INF
-COPY --from=build ${DEPENDENCY}/BOOT-INF/classes /app
+COPY --from=build extracted/dependencies/          ./
+COPY --from=build extracted/spring-boot-loader/    ./
+COPY --from=build extracted/snapshot-dependencies/ ./
+COPY --from=build extracted/application/           ./
 
-#execute the application
-ENTRYPOINT ["java","-cp","app:app/lib/*","com.onlinelibrary.book.BookServiceApplication"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
