@@ -2,12 +2,9 @@ spring:
   application:
     name: book-service
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  cloud:
+    config:
+      uri: ${CONFIGSERVER_URI:http://localhost:8071}
   config:
-    import: "configserver:http://configserver:8071"
-
-logging:
-  level:
-    com.netflix: WARN
-    org.springframework.web: WARN
-    com.onlinelibrary: DEBUG
+    import: "configserver:"
