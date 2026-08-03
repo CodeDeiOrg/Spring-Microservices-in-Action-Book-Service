@@ -4,12 +4,16 @@ import com.onlinelibrary.book.entity.Review;
 import com.onlinelibrary.book.exception.ReviewException;
 import com.onlinelibrary.book.repository.ReviewRepository;
 import com.onlinelibrary.book.requestmodels.ReviewRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -22,11 +26,18 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 @ExtendWith(MockitoExtension.class)
 class ReviewServiceTest {
 
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-08-03T10:00:00Z"), ZoneOffset.UTC);
+
     @Mock
     ReviewRepository reviewRepository;
 
-    @InjectMocks
     ReviewService reviewService;
+
+    @BeforeEach
+    void setUp() {
+        reviewService = new ReviewService(reviewRepository, FIXED_CLOCK);
+    }
 
     @Test
     void postReview_newReview_savesWithCorrectFields() {
