@@ -1,14 +1,13 @@
 package com.onlinelibrary.book.entity;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class Checkout {
-
-    public Checkout() {
-    }
 
     public Checkout(String userEmail, String checkoutDate, String returnDate, Long bookId) {
         this.userEmail = userEmail;

@@ -16,7 +16,7 @@ import reactor.core.publisher.Hooks;
 @EnableDiscoveryClient
 public class BookServiceApplication {
 
-	public static void main(String[] args) {
+	static void main(String[] args) {
 		Hooks.enableAutomaticContextPropagation();
 		SpringApplication.run(BookServiceApplication.class, args);
 	}

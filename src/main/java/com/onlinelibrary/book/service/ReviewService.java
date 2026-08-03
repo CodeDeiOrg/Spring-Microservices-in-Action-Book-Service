@@ -6,28 +6,28 @@ import com.onlinelibrary.book.repository.ReviewRepository;
 import com.onlinelibrary.book.requestmodels.ReviewRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Date;
-import java.time.LocalDate;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional
 public class ReviewService {
-    private static final Logger logger = LoggerFactory.getLogger(BookService.class);
+    private static final Logger logger = LoggerFactory.getLogger(ReviewService.class);
     private final ReviewRepository reviewRepository;
+    private final Clock clock;
 
-    @Autowired
-    public ReviewService(ReviewRepository reviewRepository) {
+    public ReviewService(ReviewRepository reviewRepository, Clock clock) {
         this.reviewRepository = reviewRepository;
+        this.clock = clock;
     }
 
     public void postReview(String userEmail, ReviewRequest reviewRequest) {
         logger.debug("Posting review");
-        Review validateReview = reviewRepository.findByUserEmailAndBookId(userEmail, reviewRequest.getBookId());
-        if (validateReview != null) {
+
+        if (reviewRepository.findByUserEmailAndBookId(userEmail, reviewRequest.getBookId()) != null) {
             throw new ReviewException("Review already created");
         }
 
@@ -35,22 +35,17 @@ public class ReviewService {
         review.setBookId(reviewRequest.getBookId());
         review.setRating(reviewRequest.getRating());
         review.setUserEmail(userEmail);
-        if (reviewRequest.getReviewDescription().isPresent()) {
-            review.setReviewDescription(reviewRequest.getReviewDescription().map(
-                    Object::toString
-            ).orElse(null));
-        }
-        review.setDate(Date.valueOf(LocalDate.now()));
+        review.setReviewDescription(reviewRequest.getReviewDescription());
+        review.setDate(LocalDateTime.now(clock));
         reviewRepository.save(review);
     }
 
     public Boolean userReviewListed(String userEmail, Long bookId) {
-        Review validateReview = reviewRepository.findByUserEmailAndBookId(userEmail, bookId);
-        return validateReview != null;
+        return reviewRepository.findByUserEmailAndBookId(userEmail, bookId) != null;
     }
 
     public void deleteReviewByBookId(Long bookId) {
+        logger.debug("Deleting reviews for bookId={}", bookId);
         reviewRepository.deleteAllByBookId(bookId);
     }
 }
-

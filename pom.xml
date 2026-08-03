@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.4</version>
+		<version>4.0.7</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.onlinelibrary</groupId>
@@ -17,7 +17,7 @@
 	<properties>
 		<java.version>25</java.version>
 		<docker.image.prefix>ionescuionut</docker.image.prefix>
-		<spring-cloud.version>2025.1.1</spring-cloud.version>
+		<spring-cloud.version>2025.1.2</spring-cloud.version>
 	</properties>
 
 	<dependencies>
@@ -71,10 +71,6 @@
 			<artifactId>spring-boot-starter-kafka</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-redis</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>io.opentelemetry.instrumentation</groupId>
 			<artifactId>opentelemetry-logback-appender-1.0</artifactId>
 			<version>2.21.0-alpha</version>
@@ -87,11 +83,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-opentelemetry</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.stripe</groupId>
-			<artifactId>stripe-java</artifactId>
-			<version>31.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -114,6 +105,54 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-data-jpa-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-jdbc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Testcontainers -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-mysql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>1.4.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.wiremock.integrations</groupId>
+			<artifactId>wiremock-spring-boot</artifactId>
+			<version>4.2.1</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -122,6 +161,14 @@
 				<groupId>org.springframework.cloud</groupId>
 				<artifactId>spring-cloud-dependencies</artifactId>
 				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!-- Source: https://mvnrepository.com/artifact/org.testcontainers/testcontainers-bom -->
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>testcontainers-bom</artifactId>
+				<version>2.0.4</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -146,36 +193,105 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
-			<!-- This plugin is used to create a docker image and publish the image to docker hub-->
 			<plugin>
-				<groupId>io.fabric8</groupId>
-				<artifactId>docker-maven-plugin</artifactId>
-				<version>0.46.0</version>
-				<configuration>
-					<images>
-						<image>
-							<name>${docker.image.prefix}/${project.artifactId}:${project.version}</name>
-							<build>
-								<dockerFile>${project.basedir}/Dockerfile</dockerFile>
-								<args>
-									<JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
-								</args>
-							</build>
-						</image>
-					</images>
-				</configuration>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.14</version>
 				<executions>
 					<execution>
-						<id>build-image</id>
-						<phase>install</phase>
-						<goals>
-							<goal>build</goal>
-							<goal>push</goal>
-						</goals>
+						<id>prepare-agent</id>
+						<goals><goal>prepare-agent</goal></goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals><goal>report</goal></goals>
+						<configuration>
+							<excludes>
+								<exclude>com/onlinelibrary/book/BookServiceApplication.class</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+					<execution>
+						<id>check</id>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+						<configuration>
+							<excludes>
+								<exclude>com/onlinelibrary/book/BookServiceApplication.class</exclude>
+							</excludes>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>INSTRUCTION</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.90</minimum>
+										</limit>
+										<limit>
+											<counter>BRANCH</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.75</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Opt-in only: `mvn install -Pdocker-release` builds the image and pushes it to Docker Hub.
+		     Not part of the default build so a routine `mvn install` never touches Docker or pushes anything. -->
+		<profile>
+			<id>docker-release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>io.fabric8</groupId>
+						<artifactId>docker-maven-plugin</artifactId>
+						<version>0.46.0</version>
+						<configuration>
+							<images>
+								<image>
+									<name>${docker.image.prefix}/${project.artifactId}:${project.version}</name>
+									<build>
+										<dockerFile>${project.basedir}/Dockerfile</dockerFile>
+										<args>
+											<JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
+										</args>
+									</build>
+								</image>
+							</images>
+						</configuration>
+						<executions>
+							<execution>
+								<id>remove-image</id>
+								<phase>prepare-package</phase>
+								<goals>
+									<goal>remove</goal>
+								</goals>
+								<configuration>
+									<removeMode>all</removeMode>
+								</configuration>
+							</execution>
+							<execution>
+								<id>build-image</id>
+								<phase>install</phase>
+								<goals>
+									<goal>build</goal>
+									<goal>push</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

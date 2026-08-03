@@ -2,26 +2,14 @@ spring:
   cloud:
     config:
       enabled: false
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
-  kafka:
-    bootstrap-servers: localhost:9092
-  data:
-    redis:
-      host: localhost
-      port: 6379
   security:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: https://dev-57877114.okta.com/oauth2/default/v1/keys
+          jwk-set-uri: https://dev-emt6hr4gnfqxes35.us.auth0.com/.well-known/jwks.json
 
 eureka:
   client:
@@ -29,4 +17,5 @@ eureka:
 
 management:
   tracing:
-    enabled: false
+    sampling:
+      probability: 0

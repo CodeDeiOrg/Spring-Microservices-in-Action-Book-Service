@@ -8,33 +8,31 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "administration-service", url = "http://administration-service:8081")
+@FeignClient(name = "administration-service", fallback = BookFeignClientFallback.class)
 public interface BookFeignClient {
 
     @GetMapping("/api/checkout/secure/{userEmail}/{bookId}")
-    Checkout findByUserEmailAndBookId(@RequestHeader(value = "Authorization") String token,
-                                      @PathVariable("userEmail") String userEmail,
-                                      @PathVariable("bookId") Long bookId);
+    Checkout findByUserEmailAndBookId(@PathVariable String userEmail,
+                                      @PathVariable Long bookId,
+                                      @RequestHeader("Authorization") String token);
 
     @GetMapping("/api/checkout/secure/{userEmail}")
-    List<Checkout> findBooksByUserEmail(@RequestHeader(value = "Authorization") String token,
-                                        @PathVariable("userEmail") String userEmail);
+    List<Checkout> findBooksByUserEmail(@PathVariable String userEmail,
+                                        @RequestHeader("Authorization") String token);
 
     @PostMapping(value = "/api/checkout/secure", consumes = "application/json")
-    void saveCheckout(@RequestHeader(value = "Authorization") String token, Checkout checkout);
+    void saveCheckout(Checkout checkout, @RequestHeader("Authorization") String token);
 
-    @DeleteMapping(value = "/api/checkout/secure/{checkoutId}", consumes = "application/json")
-    void deleteCheckoutById(@RequestHeader(value = "Authorization") String token,
-                            @PathVariable("checkoutId") Long checkoutId);
+    @DeleteMapping(value = "/api/checkout/secure/{checkoutId}")
+    void deleteCheckoutById(@PathVariable Long checkoutId, @RequestHeader("Authorization") String token);
 
     @PostMapping(value = "/api/history/secure", consumes = "application/json")
-    void saveHistory(@RequestHeader(value = "Authorization") String token, History history);
+    void saveHistory(History history, @RequestHeader("Authorization") String token);
 
     @PostMapping(value = "/api/payment/secure", consumes = "application/json")
-    void savePayment(@RequestHeader(value = "Authorization") String token, Payment payment);
+    void savePayment(Payment payment, @RequestHeader("Authorization") String token);
 
     @GetMapping("/api/payment/secure/{userEmail}")
-    Payment findPaymentByUserEmail(@RequestHeader(value = "Authorization") String token,
-                                   @PathVariable("userEmail") String userEmail);
+    Payment findPaymentByUserEmail(@PathVariable String userEmail, @RequestHeader("Authorization") String token);
 
 }

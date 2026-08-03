@@ -1,14 +1,13 @@
 package com.onlinelibrary.book.entity;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class History {
-
-    public History() {
-    }
 
     public History(String userEmail, String checkoutDate, String returnedDate, String title,
                    String author, String description, String img) {

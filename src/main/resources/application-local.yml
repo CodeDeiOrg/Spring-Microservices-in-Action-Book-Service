@@ -4,12 +4,16 @@ spring:
     url: jdbc:mysql://localhost:3306/reactlibrarydatabase?useSSL=false&useUnicode=yes&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: user
     password: userpass
-  data:
-    redis:
-      host: localhost
   kafka:
     producer:
       bootstrap-servers: localhost:9094
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
 
 eureka:
   client:
