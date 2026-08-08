@@ -1,5 +1,6 @@
 package com.onlinelibrary.book.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onlinelibrary.book.entity.Book;
 import com.onlinelibrary.book.exception.BookException;
 import com.onlinelibrary.book.exception.PaymentException;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -17,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -26,6 +29,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BookControllerTest {
 
     @Autowired MockMvc mockMvc;
+    @Autowired ObjectMapper objectMapper;
 
     @MockitoBean BookService bookService;
     @MockitoBean JwtDecoder jwtDecoder;
@@ -140,7 +145,22 @@ class BookControllerTest {
                         .param("bookId", "1")
                         .with(jwt().jwt(j -> j.claim("email", "user@test.com"))))
                 .andExpect(status().isPaymentRequired())
-                .andExpect(jsonPath("$.message").value("Outstanding fees"));
+                .andExpect(jsonPath("$.message").value("Outstanding fees"))
+                .andExpect(jsonPath("$.overdueBookTitle").doesNotExist());
+    }
+
+    @Test
+    void checkoutBook_overdueLoan_returns402WithBookDetails() throws Exception {
+        willThrow(new PaymentException("You have an overdue book. Please return it before checking out more books.",
+                "Clean Code", "2026-08-01"))
+                .given(bookService).checkoutBook(anyString(), anyLong(), anyString());
+
+        mockMvc.perform(put("/api/books/secure/checkout")
+                        .param("bookId", "1")
+                        .with(jwt().jwt(j -> j.claim("email", "user@test.com"))))
+                .andExpect(status().isPaymentRequired())
+                .andExpect(jsonPath("$.overdueBookTitle").value("Clean Code"))
+                .andExpect(jsonPath("$.overdueBookDueDate").value("2026-08-01"));
     }
 
     // --- PUT /api/books/secure/return ---
@@ -218,6 +238,52 @@ class BookControllerTest {
     @Test
     void deleteBookById_withNoToken_returns401() throws Exception {
         mockMvc.perform(delete("/api/books/secure/1"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(bookService);
+    }
+
+    // --- POST /api/books/secure ---
+    // administration-service's BookRestTemplateClient.saveBook() posts here
+    // (replacing the now-locked-down Data REST "/api/books" collection).
+
+    @Test
+    void createBook_withAdminToken_returns200() throws Exception {
+        Book book = new Book();
+        book.setTitle("Effective Java");
+        given(bookService.createBook(any())).willReturn(book);
+
+        mockMvc.perform(post("/api/books/secure")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(book))
+                        .with(jwt().authorities(new SimpleGrantedAuthority("admin"))))
+                .andExpect(status().isOk());
+
+        verify(bookService).createBook(any());
+    }
+
+    @Test
+    void createBook_withUserToken_returns403() throws Exception {
+        Book book = new Book();
+        book.setTitle("Effective Java");
+
+        mockMvc.perform(post("/api/books/secure")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(book))
+                        .with(jwt()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(bookService);
+    }
+
+    @Test
+    void createBook_withNoToken_returns401() throws Exception {
+        Book book = new Book();
+        book.setTitle("Effective Java");
+
+        mockMvc.perform(post("/api/books/secure")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(book)))
                 .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(bookService);

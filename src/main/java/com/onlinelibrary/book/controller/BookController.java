@@ -60,6 +60,12 @@ public class BookController {
         bookService.deleteBookById(bookId);
     }
 
+    @PreAuthorize("hasAuthority('admin')")
+    @PostMapping("/secure")
+    public Book createBook(@RequestBody Book book) {
+        return bookService.createBook(book);
+    }
+
     private static String bearerToken(Jwt jwt) {
         return "Bearer " + jwt.getTokenValue();
     }

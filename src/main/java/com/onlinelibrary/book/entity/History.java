@@ -28,4 +28,7 @@ public class History {
     private String author;
     private String description;
     private String img;
+    private double lateFee = 0.0;
+    private boolean feeSettled = true;
+    private int daysLate = 0;
 }

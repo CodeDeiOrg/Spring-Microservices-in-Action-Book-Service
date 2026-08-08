@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -17,6 +18,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(PaymentException.class)
     public ResponseEntity<Map<String, String>> handlePaymentRequired(PaymentException ex) {
-        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of("message", ex.getMessage()));
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", ex.getMessage());
+        if (ex.getOverdueBookTitle() != null) {
+            body.put("overdueBookTitle", ex.getOverdueBookTitle());
+            body.put("overdueBookDueDate", ex.getOverdueBookDueDate());
+        }
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(body);
     }
 }

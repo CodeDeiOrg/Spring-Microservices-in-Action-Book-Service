@@ -17,5 +17,9 @@ public class MyDataRestConfig implements RepositoryRestConfigurer {
         config.exposeIdsFor(Book.class);
         config.exposeIdsFor(Review.class);
         config.exposeIdsFor(Message.class);
+
+        // Spring Data REST auto-exposes full CRUD on every JpaRepository by default,
+        // and SecurityConfiguration only protects "/secure/**"
+        config.disableDefaultExposure();
     }
 }

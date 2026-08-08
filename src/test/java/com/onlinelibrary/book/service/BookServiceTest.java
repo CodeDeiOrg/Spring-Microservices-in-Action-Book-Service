@@ -143,6 +143,39 @@ class BookServiceTest {
         verify(bookRepository, never()).save(any());
     }
 
+    @Test
+    void checkoutBook_existingLoanOverdue_throwsPaymentExceptionWithBookDetails() {
+        Book book = bookWithCopies(2);
+        given(bookRepository.findById(1L)).willReturn(Optional.of(book));
+        given(bookFeignClient.findByUserEmailAndBookId("user@test.com", 1L, TOKEN)).willReturn(null);
+
+        Book overdueBook = bookWithCopies(1);
+        overdueBook.setId(2L);
+        overdueBook.setTitle("Clean Code");
+        given(bookRepository.findById(2L)).willReturn(Optional.of(overdueBook));
+
+        Checkout overdue = new Checkout("user@test.com",
+                TODAY.minusDays(10).toString(),
+                TODAY.minusDays(3).toString(), // 3 days overdue
+                2L);
+        given(bookFeignClient.findBooksByUserEmail("user@test.com", TOKEN)).willReturn(List.of(overdue));
+
+        Payment payment = new Payment();
+        payment.setAmount(0.0);
+        payment.setUserEmail("user@test.com");
+        given(bookFeignClient.findPaymentByUserEmail("user@test.com", TOKEN)).willReturn(payment);
+
+        assertThatThrownBy(() -> bookService.checkoutBook("user@test.com", 1L, TOKEN))
+                .isInstanceOf(PaymentException.class)
+                .satisfies(ex -> {
+                    PaymentException paymentException = (PaymentException) ex;
+                    assertThat(paymentException.getOverdueBookTitle()).isEqualTo("Clean Code");
+                    assertThat(paymentException.getOverdueBookDueDate()).isEqualTo(overdue.getReturnDate());
+                });
+
+        verify(bookRepository, never()).save(any());
+    }
+
     // -------------------------------------------------------------------------
     // returnBook
     // -------------------------------------------------------------------------
@@ -206,6 +239,13 @@ class BookServiceTest {
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
         verify(bookFeignClient).savePayment(paymentCaptor.capture(), org.mockito.ArgumentMatchers.eq(TOKEN));
         assertThat(paymentCaptor.getValue().getAmount()).isEqualTo(3.0); // 3 days late
+
+        ArgumentCaptor<com.onlinelibrary.book.entity.History> historyCaptor =
+                ArgumentCaptor.forClass(com.onlinelibrary.book.entity.History.class);
+        verify(bookFeignClient).saveHistory(historyCaptor.capture(), org.mockito.ArgumentMatchers.eq(TOKEN));
+        assertThat(historyCaptor.getValue().getDaysLate()).isEqualTo(3);
+        assertThat(historyCaptor.getValue().getLateFee()).isEqualTo(3.0);
+        assertThat(historyCaptor.getValue().isFeeSettled()).isFalse();
     }
 
     @Test
@@ -354,6 +394,22 @@ class BookServiceTest {
         bookService.deleteBookById(99L);
 
         verify(bookRepository, never()).deleteById(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // createBook
+    // -------------------------------------------------------------------------
+
+    @Test
+    void createBook_delegatesToRepositorySave() {
+        Book book = new Book();
+        book.setTitle("New Book");
+        given(bookRepository.save(book)).willReturn(book);
+
+        Book result = bookService.createBook(book);
+
+        assertThat(result).isEqualTo(book);
+        verify(bookRepository).save(book);
     }
 
     // -------------------------------------------------------------------------

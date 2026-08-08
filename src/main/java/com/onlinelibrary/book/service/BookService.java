@@ -25,6 +25,7 @@ import java.util.Optional;
 @Transactional
 public class BookService {
     private static final Logger logger = LoggerFactory.getLogger(BookService.class);
+    private static final double LATE_FEE_PER_DAY = 1.0;
     private final BookRepository bookRepository;
     private final BookFeignClient bookFeignClient;
     private final Clock clock;
@@ -49,12 +50,21 @@ public class BookService {
 
         List<Checkout> currentBooksCheckedOut = bookFeignClient.findBooksByUserEmail(userEmail, token);
 
-        boolean bookNeedsReturned = currentBooksCheckedOut.stream()
-                .anyMatch(c -> LocalDate.parse(c.getReturnDate()).isBefore(LocalDate.now(clock)));
+        Optional<Checkout> overdueCheckout = currentBooksCheckedOut.stream()
+                .filter(c -> LocalDate.parse(c.getReturnDate()).isBefore(LocalDate.now(clock)))
+                .findFirst();
 
         Payment userPayment = bookFeignClient.findPaymentByUserEmail(userEmail, token);
 
-        if (userPayment != null && (userPayment.getAmount() > 0 || bookNeedsReturned)) {
+        if (userPayment != null && (userPayment.getAmount() > 0 || overdueCheckout.isPresent())) {
+            if (overdueCheckout.isPresent()) {
+                Checkout overdue = overdueCheckout.get();
+                String overdueTitle = bookRepository.findById(overdue.getBookId())
+                        .map(Book::getTitle)
+                        .orElse("a book");
+                throw new PaymentException("You have an overdue book. Please return it before checking out more books.",
+                        overdueTitle, overdue.getReturnDate());
+            }
             throw new PaymentException("Outstanding fees");
         }
 
@@ -137,13 +147,13 @@ public class BookService {
 
         if (daysLeft < 0) {
             Payment payment = bookFeignClient.findPaymentByUserEmail(userEmail, token);
-            payment.setAmount(payment.getAmount() + Math.abs(daysLeft));
+            payment.setAmount(payment.getAmount() + Math.abs(daysLeft) * LATE_FEE_PER_DAY);
             bookFeignClient.savePayment(payment, token);
         }
 
         bookFeignClient.deleteCheckoutById(validateCheckout.getId(), token);
 
-        bookFeignClient.saveHistory(new History(
+        History history = new History(
                 userEmail,
                 validateCheckout.getCheckoutDate(),
                 LocalDate.now(clock).toString(),
@@ -151,7 +161,14 @@ public class BookService {
                 book.get().getAuthor(),
                 book.get().getDescription(),
                 book.get().getImg()
-        ), token);
+        );
+        if (daysLeft < 0) {
+            long daysLate = Math.abs(daysLeft);
+            history.setDaysLate((int) daysLate);
+            history.setLateFee(daysLate * LATE_FEE_PER_DAY);
+            history.setFeeSettled(false);
+        }
+        bookFeignClient.saveHistory(history, token);
     }
 
     public void renewLoan(String userEmail, Long bookId, String token) {
@@ -178,5 +195,10 @@ public class BookService {
         if (opt.isPresent()) {
             bookRepository.deleteById(bookId);
         }
+    }
+
+    public Book createBook(Book book) {
+        logger.debug("Creating book");
+        return bookRepository.save(book);
     }
 }
